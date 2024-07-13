@@ -24,7 +24,7 @@ def print_exit(s: str, err:bool=True):
     exit(2 if err else 0)
 
 def main():
-    vars = {k: v if v is not None else os.environ[k] for k, v in ENV_VARS.items()}
+    vars = {k: v if v is not None else os.environ.get(k, v) for k, v in ENV_VARS.items()}
     print(vars)
     
     if vars["TR_DRY_RUN"].lower() in ("yes", "true", "t", "1"):
