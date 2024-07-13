@@ -15,7 +15,6 @@ ENV_VARS = {
     "TR_MOVE_TO_PREFIX": None, 
     "TR_USER": None, 
     "TR_PASS": None,
-    "TR_DRY_RUN": None
 }
 
 def print_exit(s: str, err:bool=True):
@@ -27,9 +26,6 @@ def main():
     vars = {k: v if v is not None else os.environ.get(k, v) for k, v in ENV_VARS.items()}
     print(vars)
     
-    if vars["TR_DRY_RUN"].lower() in ("yes", "true", "t", "1"):
-        vars["TR_DRY_RUN"] = True
-
     if not "music" in vars["TR_TORRENT_LABELS"].split(','): 
         print_exit("Torrent not tagged music", False)
 
