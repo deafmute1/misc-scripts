@@ -24,7 +24,6 @@ def print_exit(s: str, err:bool=True):
 
 def main():
     vars = {k: v if v is not None else os.environ.get(k, v) for k, v in ENV_VARS.items()}
-    print(vars)
     
     if not "music" in vars["TR_TORRENT_LABELS"].split(','): 
         print_exit("Torrent not tagged music", False)
@@ -48,24 +47,22 @@ def main():
             continue
         artist_count[TinyTag.get(file).artist] += 1
         
-    path_move = path_move.joinpath(artist_count.most_common(1)[0])
+    path_move = path_move.joinpath(artist_count.most_common(1)[0][0])
     path_move.mkdir(exist_ok=True)
     cmd = [
         "transmission-remote",
         "localhost:9091", 
-        "-n", "admin:password", 
+        "-n", f'{vars["TR_USER"]}:{vars:["TR_PASS"]}'
         "-t", vars["TR_TORRENT_ID"],
         "--move", str(path_move)
     ] 
-    if vars["TR_DRY_RUN"]:
-        print_exit("Generated cmd: {cmd}", False)
     
-    ret = subprocess.run(cmd, capture_output=True, stderr=subprocess.STDOUT)
+    ret = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
     err = False if ret.returncode == 0 else True
     info_string = (
         f'Move operation {'failed' if err else 'completed sucessfully'}\n'
         f'command: {ret.args}\n'
-        f'output: {ret.stdout}\n'
+        f'output: {ret.stdout}'
     ) 
     print_exit(info_string, err)
     
