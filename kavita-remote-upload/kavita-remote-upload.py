@@ -26,7 +26,7 @@ from tkinter import messagebox
 import requests
 import json
 
-from .env import *
+from .env import odps_url, send_remote, ssh_key,ssh_user, kavita_base_path
 
 #Defaults kavita_base_path to directory this program is in, if not set.
 if kavita_base_path == '':
@@ -38,34 +38,24 @@ api_key = odps_url.split('/opds/')[1]
 
 
 def kauth():
-
     auth_url = base_url+'/api/Plugin/authenticate/?apiKey='+api_key+'&pluginName=Kavita_List'
-
     response = requests.post(auth_url)
-
     token = response.json()['token']
-
     return token
 
 
 def get_kavita_libraries(kavita_token):
-
     headers = {
         'Authorization': f'Bearer {kavita_token}',
         'accept': "text/plain",
         'Content-Type': "application/json"
     }
-
     libraries_url = base_url+'/api/Library/libraries'
-
     response = requests.get(libraries_url, headers=headers)
-
     libraries = response.json()
-
     library_dict = {}
 
     for library in libraries:
-
         library_name = library['name']
         library_folder = kavita_base_path+library['folders'][0]
         library_dict[library_name] = library_folder
@@ -73,45 +63,31 @@ def get_kavita_libraries(kavita_token):
     return library_dict
 
 def scan_kavita_folder(kavita_scan_path):
-
     kavita_token = kauth()
-
     file_scan_url = base_url+'/api/Library/scan-folder'
-
     headers = {
         'Authorization': f'Bearer {kavita_token}',
         'accept': "text/plain",
         'Content-Type': "application/json"
     }
-
     data = {
         "apiKey": api_key,
         "folderPath": kavita_scan_path,
     }
-
     response = requests.post(file_scan_url, headers=headers, data=json.dumps(data))
-
-    return
 
 
 
 def send_epub_via_rsync(local_path,remote_path):
-
     # Rsync with --mkpath option
     subprocess.run(['rsync', '-avz', '--mkpath', '--append-verify', '-e', f'ssh -i {ssh_key}', local_path, f'{ssh_user}:{remote_path}'], check=True)
-
     # Remove the base path
     remote_path_string = str(remote_path)
     relative_path = remote_path_string[len(kavita_base_path):].strip('/')
-
     # Remove the filename
     dir_path = '/'.join(relative_path.split('/')[:-1])
-
     kavita_scan_path = '/' + dir_path
-
     scan_kavita_folder(kavita_scan_path)
-
-    return
 
 
 def sanitize_folder_name(name):
@@ -169,12 +145,9 @@ def get_epub_metadata(epub_path):
     return title, author,series_name, series_index
 
 def convert_epub(input_file, output_location, output_directory, author, title, series, series_index):
-
     # Determine output directory and file paths
     output_dir = sanitize_folder_name(output_directory)
-
     output_dir_path = Path(output_location+'/'+output_dir)
-
     local_output_dir_path = output_dir_path
 
     # Extract the original file name and create output file path
@@ -182,7 +155,6 @@ def convert_epub(input_file, output_location, output_directory, author, title, s
     output_file = local_output_dir_path / input_filename
 
     if send_remote:
-
         local_output_base = Path().resolve()
         local_output_dir_path = Path(f"{local_output_base}/temp/{output_dir}")
         output_file = local_output_dir_path / input_filename
@@ -212,24 +184,17 @@ def convert_epub(input_file, output_location, output_directory, author, title, s
         print(f"Successfully converted {input_file} to {output_file}")
     
     if send_remote:
-        
         remote_output_dir_path = Path(f"{output_location}/{output_dir}")
-        
         remote_output_file = remote_output_dir_path / input_filename
-
         print(output_file)
         print(remote_output_file)
-
         result = send_epub_via_rsync(output_file,remote_output_file)
     
     return
 
 def process_epub():
-
     if validate_fields():
-
         show_loading_indicator()
-
         input_file = input_file_path.get()
         output_location = selected_folder.get()
         author = author_entry.get()
@@ -237,11 +202,8 @@ def process_epub():
         series = series_entry.get()
         series_index = series_index_entry.get()
         output_directory = series_folder_entry.get()
-
         convert_epub( input_file, output_location, output_directory, author, title, series, series_index)
-
         done_loading_indicator()
-    
     else:
         messagebox.showerror("Error", "All fields are required.")
 
@@ -266,22 +228,16 @@ def done_loading_indicator():
 def update_dropdown():
     # Clear existing options
     dropdown['menu'].delete(0, 'end')
-    
     # Get library root directory
     current_dir = Path(kavita_base_path)
-
     kavita_token = kauth()
     libraries = get_kavita_libraries(kavita_token)
-
     dropdown['menu'].add_command(label="(Kavita Root)", command=tk._setit(selected_folder, str(current_dir)))
-
     for library_name, library_path in libraries.items():
-        
         dropdown['menu'].add_command(label=library_name, command=tk._setit(selected_folder, library_path))
 
 
 def clear_fields(clear_file = True):
-
     if clear_file:
         input_file_path.set("")
     
@@ -307,8 +263,6 @@ def validate_fields():
         return False
     if not selected_folder.get().strip():
         return False
-    
-
     return True
 
 
@@ -316,16 +270,13 @@ def browse_file():
     filename = filedialog.askopenfilename(filetypes=[("EPUB files", "*.epub")])
     input_file_path.set(filename)
     if filename:
-
         clear_fields(False)
-        
         stored_title, stored_author, stored_series, stored_series_index = get_epub_metadata(filename)
-
         if stored_title:
             title = stored_title
         else:
             title = Path(filename).stem
-
+            
         if stored_author:
             author = stored_author
         else:
