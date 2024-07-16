@@ -1,41 +1,88 @@
 #! /usr/bin/env -S pipx run
 # /// script
-# dependencies = ["requests"]
+# dependencies = ["requests", "python-dotenv"]
 # ///
 
 # README
 # Some dependancies must be installed manually (python-tkinter, pipx):
-# On MacOS: `brew install python-tk pipx && pipx ensurepath` (requires homebrew to be installed)
+#
+# On MacOS: `brew install python-tk pipx  && pipx ensurepath` (requires homebrew to be installed)
 # On Debian-based/apt: `sudo apt update && sudo apt install python3-tk pipx && pipx ensurepath`
 # On Fedora-based/dnf: `sudo dnf install python3-tkinter pipx && pipx ensurepath`
+#
+# For remote access, rsync should also be installed.
+# Warning: MacOS ships with an ancient version of rsync from 2006.
+# Please update your rsync, `homebrew install rsync` is sufficent to do this!
 
 # To run this script:
 # `chmod +x ./kavita-remote-upload.py` (on first run only)
 # `./kavita-remote-upload.py` 
-# OR `pipx run kavita-remote-upload.py`
+#
+# OR just `pipx run kavita-remote-upload.py`
 
-# You can set variables to run this script in ./env.py, see env.py.example
-##################################
+# You can set variables to run this script in .env, see env.py.example
+
+# This script was originally written by @duplaja, with heavy edits by @deafmute1
+# Original: (https://github.com/duplaja/kavita-scripts/blob/main/epub-fix-gui-remote.py)
+#
 from pathlib import Path
 import re
-import subprocess
+import subprocess 
 import tkinter as tk
+from argparse import ArgumentParser
 from tkinter import filedialog
-from tkinter import ttk
+from tkinter import ttk 
 from tkinter import messagebox
 import requests
 import json
+from dotenv import dotenv_values
 
-from .env import odps_url, send_remote, ssh_key,ssh_user, kavita_base_path
+######################
+## Set configuration variables
+######################
 
-#Defaults kavita_base_path to directory this program is in, if not set.
-if kavita_base_path == '':
-    kavita_base_path = str(Path().resolve())
+# Set up and parse CLI
+p = ArgumentParser()
+p.add_argument('--path', '-p', type=str, help="Overrides kavita_base_path in env.py")
+p.add_argument('--env-file', '-f', type=str, default=".env", help="Specify custom env file location")
+p.add_argument('--author-folder', '-a', action='store_true', default=False, help="Sort by author e.g. author/series/book.epub")
+p.add_argument('--with-file', help="Open this epub at launch")
+p.add_argument('--library', '-l', help="Set a default library")
+args = p.parse_args()
 
+
+# if there is no .env in cwd, use .env in script dir.
+# this is useful in case of symlinking this script e.g. to .local/bin
+script_dir_dotenv = Path(__file__).resolve().parent.joinpath('.env')
+if ( 
+    args.env_file == ".env" and 
+    not Path.cwd().joinpath('.env').is_file()
+    and script_dir_dotenv.is_file()
+):
+    args.env_file = str(script_dir_dotenv)
+
+if not Path(args.env_file).is_file():
+    print("no file found at <CWD/PWD>/.env, <dir containing kavita-remote-upload.py>/.env, \
+        or --env_file <ENV_FILE> ")
+
+vars = dotenv_values(args.env_file)
+
+odps_url=vars['odps_url']
+send_remote=vars.get('send_remote', 'false').lower() in ('true', 'yes', '1', 't', 'y')
+if send_remote:
+    ssh_key=vars['ssh_key']
+    ssh_user=vars['ssh_user']
+kavita_base_path=args.path if args.path else vars.get('kavita_base_path', str(Path().resolve()))
+use_author_folder=True if args.author_folder else vars.get('use_author_folder', False)
+default_library=args.library
+open_epub=args.with_file
 # Calculated from odps_url
 base_url = odps_url.split('/api')[0]
 api_key = odps_url.split('/opds/')[1]
 
+#############################
+## Function definitions
+#############################
 
 def kauth():
     auth_url = base_url+'/api/Plugin/authenticate/?apiKey='+api_key+'&pluginName=Kavita_List'
@@ -146,8 +193,7 @@ def get_epub_metadata(epub_path):
 
 def convert_epub(input_file, output_location, output_directory, author, title, series, series_index):
     # Determine output directory and file paths
-    output_dir = sanitize_folder_name(output_directory)
-    output_dir_path = Path(output_location+'/'+output_dir)
+    output_dir_path = Path(output_location+'/'+output_directory)
     local_output_dir_path = output_dir_path
 
     # Extract the original file name and create output file path
@@ -156,7 +202,7 @@ def convert_epub(input_file, output_location, output_directory, author, title, s
 
     if send_remote:
         local_output_base = Path().resolve()
-        local_output_dir_path = Path(f"{local_output_base}/temp/{output_dir}")
+        local_output_dir_path = Path(f"{local_output_base}/temp/{output_directory}")
         output_file = local_output_dir_path / input_filename
 
 
@@ -184,7 +230,7 @@ def convert_epub(input_file, output_location, output_directory, author, title, s
         print(f"Successfully converted {input_file} to {output_file}")
     
     if send_remote:
-        remote_output_dir_path = Path(f"{output_location}/{output_dir}")
+        remote_output_dir_path = Path(f"{output_location}/{output_directory}")
         remote_output_file = remote_output_dir_path / input_filename
         print(output_file)
         print(remote_output_file)
@@ -197,12 +243,12 @@ def process_epub():
         show_loading_indicator()
         input_file = input_file_path.get()
         output_location = selected_folder.get()
-        author = author_entry.get()
+        author = author_entry_value.get()
         title = title_entry.get()
-        series = series_entry.get()
+        series = series_entry_value.get()
         series_index = series_index_entry.get()
-        output_directory = series_folder_entry.get()
-        convert_epub( input_file, output_location, output_directory, author, title, series, series_index)
+        output_directory = series_folder_value.get()
+        convert_epub(input_file, output_location, output_directory, author, title, series, series_index)
         done_loading_indicator()
     else:
         messagebox.showerror("Error", "All fields are required.")
@@ -235,29 +281,32 @@ def update_dropdown():
     dropdown['menu'].add_command(label="(Kavita Root)", command=tk._setit(selected_folder, str(current_dir)))
     for library_name, library_path in libraries.items():
         dropdown['menu'].add_command(label=library_name, command=tk._setit(selected_folder, library_path))
+        if library_name.casefold() == default_library.casefold(): 
+            selected_folder.set(library_path)
+    
 
 
 def clear_fields(clear_file = True):
     if clear_file:
         input_file_path.set("")
     
-    series_folder_entry.delete(0,tk.END)
-    author_entry.delete(0, tk.END)
+    series_folder_value.set("")
+    author_entry_value.set("")
     title_entry.delete(0, tk.END)
-    series_entry.delete(0, tk.END)
+    series_entry_value.set("")
     series_index_entry.delete(0, tk.END)
     hide_loading_indicator()
 
 def validate_fields():
     if not input_file_path.get().strip():
         return False
-    if not series_folder_entry.get().strip():
+    if not series_folder_value.get().strip():
         return False
-    if not author_entry.get().strip():
+    if not author_entry_value.get().strip():
         return False
     if not title_entry.get().strip():
         return False
-    if not series_entry.get().strip():
+    if not series_entry_value.get().strip():
         return False
     if not series_index_entry.get().strip():
         return False
@@ -265,46 +314,63 @@ def validate_fields():
         return False
     return True
 
-
-def browse_file():
-    filename = filedialog.askopenfilename(filetypes=[("EPUB files", "*.epub")])
+def browse_file(filename=None):
+    if filename is None:
+        filename = filedialog.askopenfilename(filetypes=[("EPUB files", "*.epub")])
     input_file_path.set(filename)
     if filename:
         clear_fields(False)
         stored_title, stored_author, stored_series, stored_series_index = get_epub_metadata(filename)
-        if stored_title:
-            title = stored_title
-        else:
-            title = Path(filename).stem
-            
-        if stored_author:
-            author = stored_author
-        else:
-            author = 'Unknown'
-
-        if stored_series:
-            series = stored_series
-        else:
-            series = Path(filename).stem
-
-        if stored_series_index:
-            series_index = stored_series_index
-        else:
-            series_index = '1.0'
-    
+        title = stored_title if stored_title else Path(filename).stem
+        author = stored_author if stored_author else 'Unknown'
+        series = stored_series if stored_series else Path(filename).stem 
+        series_index = stored_series_index if stored_series_index else '1.0'
         if title:
             title_entry.insert(0, title)
         if author:
-            author_entry.insert(0, author)
+            author_entry_value.set(author)
         if series:
-            series_entry.insert(0, series)
-            series_folder_entry.insert(0, series)
+            series_entry_value.set(series)
+            process_series_folder_updates()
         if series_index:
             series_index_entry.insert(0, series_index)
         
+def process_series_folder_updates(*args, **kwargs):
+    # dont allow metadata changes to impact the entry if unlocked.
+    if not series_folder_lock.get(): 
+        return
+    series=series_entry_value.get()
+    author=author_entry_value.get()
+    # guard to protect first run from error
+    if not (series and author): 
+        return
 
+    # parsing full names in to components is a culturally impossible task.
+    # Lets assume that the first white space separated substring is the first name.
+    # Leaving the rest as the last name.
+    author = author.split()
+    try: 
+        author = author[-1] + ", " + " ".join(author[:-1])
+    except: # if only one name substring
+        author = author[0] 
+    if use_author_folder_tk.get():
+        series_folder_value.set(
+            sanitize_folder_name(author) + "/" + sanitize_folder_name(series)
+        )
+    else: 
+        series_folder_value.set(sanitize_folder_name(series))
+
+###############
+## GUI Logic 
+###############
 app = tk.Tk()
 app.title("Kavita Epub Preparer")
+
+
+def open_epub_at_launch(): 
+    if open_epub: browse_file(str(Path(open_epub).resolve()))
+app.after_idle(open_epub_at_launch)
+
 
 # Style Configuration
 style = ttk.Style()
@@ -319,6 +385,7 @@ style.theme_use('clam')
 style.configure('TFrame', background=background)
 style.configure('TLabel', background=background, foreground=compliment, font=('Helvetica', 12))
 style.configure('TButton', background=compliment, foreground=button_text, font=('Helvetica', 12))
+style.configure('TEntry', insertcolor='#000000')
 
 app.configure(bg=background)
 
@@ -341,36 +408,60 @@ selected_folder = tk.StringVar()
 dropdown = ttk.OptionMenu(frame, selected_folder, current_dir)
 dropdown.grid(row=1, column=1, padx=10, pady=5, sticky='ew')
 
-ttk.Label(frame, text="Series Folder\n(Output Dir):").grid(row=2, column=0, padx=10, pady=5)
-series_folder_entry = ttk.Entry(frame, width=50)
+use_author_folder_tk=tk.BooleanVar(value=use_author_folder)
+ttk.Checkbutton(
+    frame, variable=use_author_folder_tk, 
+    command=process_series_folder_updates,
+    text="Prefix with author folder"
+).grid(row=2, column=2, padx=10, pady=5)
+
+series_folder_value = tk.StringVar()
+ttk.Label(frame, text="Series Folder\n(Output Subpath):").grid(row=2, column=0, padx=10, pady=5)
+series_folder_entry = ttk.Entry(frame, textvariable=series_folder_value, width=50)
 series_folder_entry.grid(row=2, column=1, padx=10, pady=5)
 
-ttk.Label(frame, text="Epub Metadata", font=('Helvetica', 16)).grid(row=3, column=0, columnspan=3, padx=10, pady=10)
+def process_lock_changes(*args, **kwargs):
+    series_folder_entry.config(
+        state="readonly" if series_folder_lock.get() else "normal"
+    )
+    process_series_folder_updates()
 
-ttk.Label(frame, text="Author:").grid(row=4, column=0, padx=10, pady=5)
-author_entry = ttk.Entry(frame, width=50)
-author_entry.grid(row=4, column=1, padx=10, pady=5)
+series_folder_lock=tk.BooleanVar(value=True)
+ttk.Checkbutton(
+    frame, variable=series_folder_lock, 
+    command=process_lock_changes,
+    text="Lock series folder field to metadata values"
+).grid(row=3, column=2, padx=10, pady=5)
 
-ttk.Label(frame, text="Title:").grid(row=5, column=0, padx=10, pady=5)
+
+ttk.Label(frame, text="Epub Metadata", font=('Helvetica', 16)).grid(row=4, column=0, columnspan=3, padx=10, pady=10)
+
+author_entry_value = tk.StringVar()
+author_entry_value.trace_add("write", process_series_folder_updates)
+ttk.Label(frame, text="Author:").grid(row=5, column=0, padx=10, pady=5)
+ttk.Entry(frame, textvariable=author_entry_value, width=50).grid(row=5, column=1, padx=10, pady=5)
+
+ttk.Label(frame, text="Title:").grid(row=6, column=0, padx=10, pady=5)
 title_entry = ttk.Entry(frame, width=50)
-title_entry.grid(row=5, column=1, padx=10, pady=5)
+title_entry.grid(row=6, column=1, padx=10, pady=5)
 
-ttk.Label(frame, text="Series:").grid(row=6, column=0, padx=10, pady=5)
-series_entry = ttk.Entry(frame, width=50)
-series_entry.grid(row=6, column=1, padx=10, pady=5)
+series_entry_value = tk.StringVar()
+series_entry_value.trace_add("write", process_series_folder_updates)
+ttk.Label(frame, text="Series:").grid(row=7, column=0, padx=10, pady=5)
+ttk.Entry(frame, textvariable=series_entry_value, width=50).grid(row=7, column=1, padx=10, pady=5)
 
-ttk.Label(frame, text="Series Index:").grid(row=7, column=0, padx=10, pady=5)
+ttk.Label(frame, text="Series Index:").grid(row=8, column=0, padx=10, pady=5)
 series_index_entry = ttk.Entry(frame, width=50)
-series_index_entry.grid(row=7, column=1, padx=10, pady=5)
+series_index_entry.grid(row=8, column=1, padx=10, pady=5)
 
-ttk.Button(frame, text="Process Epub", command=process_epub).grid(row=8, column=0, columnspan=3, pady=10)
+ttk.Button(frame, text="Process Epub", command=process_epub).grid(row=9, column=0, columnspan=3, pady=10)
 
 # Create the loading indicator
 loading_label = ttk.Label(frame, text="")
-loading_label.grid(row=9, column=0, columnspan=3, pady=10)
+loading_label.grid(row=10, column=0, columnspan=3, pady=10)
 loading_label.grid_remove()  # Hide initially
 
-ttk.Button(frame, text="Clear All", command=clear_fields).grid(row=10, column=0, columnspan=3, pady=10)
+ttk.Button(frame, text="Clear All", command=clear_fields).grid(row=11, column=0, columnspan=3, pady=10)
 
 frame.columnconfigure(1, weight=1)
 frame.grid_columnconfigure(1, weight=1)
