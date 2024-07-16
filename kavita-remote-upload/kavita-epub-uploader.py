@@ -2,27 +2,7 @@
 # /// script
 # dependencies = ["requests", "python-dotenv"]
 # ///
-
-# README
-# Some dependancies must be installed manually (python-tkinter, pipx):
-#
-# On MacOS: `brew install python-tk pipx  && pipx ensurepath` (requires homebrew) 
-# On Debian-based/apt: `sudo apt update && sudo apt install python3-tk pipx && pipx ensurepath`
-# On Fedora-based/dnf: `sudo dnf install python3-tkinter pipx && pipx ensurepath`
-#
-# For remote access, rsync should also be installed.
-# Warning: MacOS ships with an ancient version of rsync from 2006 that is incompatible!
-# Please update your rsync, `homebrew install rsync` is sufficent to do this!
-
-# To run this script:
-# `chmod +x ./kavita-remote-upload.py` (on first run only)
-# `./kavita-remote-upload.py` 
-# OR
-# `pipx run kavita-remote-upload.py`
-
-# You can set config options for this script in .env, see .env.example for schema.
-
-# This script was originally written by @duplaja, with heavy edits by @deafmute1
+# This script was originally written by @duplaja, with heavy edits by @deafmute1 <violet@def.au>
 # Original: (https://github.com/duplaja/kavita-scripts/blob/main/epub-fix-gui-remote.py)
 
 from pathlib import Path
@@ -46,26 +26,31 @@ p = ArgumentParser()
 p.add_argument('--path', '-p', type=str, help="Overrides kavita_base_path in env.py")
 p.add_argument('--env-file', '-f', type=str, default=".env", help="Specify custom env file location")
 p.add_argument('--author-folder', '-a', action='store_true', default=False, help="Sort by author e.g. author/series/book.epub")
-p.add_argument('--with-file', help="Open this epub at launch")
+p.add_argument('--with-file', '-w', help="Open this epub at launch")
 p.add_argument('--library', '-l', help="Set a default library")
 args = p.parse_args()
 
 
+env_file=args.env_file
 # if there is no .env in cwd, use .env in script dir.
 # this is useful in case of symlinking this script e.g. to .local/bin
 script_dir_dotenv = Path(__file__).resolve().parent.joinpath('.env')
 if ( 
-    args.env_file == ".env" and 
+    env_file == ".env" and 
     not Path.cwd().joinpath('.env').is_file()
     and script_dir_dotenv.is_file()
 ):
-    args.env_file = str(script_dir_dotenv)
+    env_file = str(script_dir_dotenv)
 
-if not Path(args.env_file).is_file():
-    print("no file found at <CWD/PWD>/.env, <dir containing kavita-remote-upload.py>/.env, \
-        or --env_file <ENV_FILE> ")
+if env_file is None or not Path(env_file).is_file():
+    p.print_help()
+    print(
+        f"no file found at <CWD/PWD>/.env, <dir containing kavita-remote-upload.py>/.env"
+        f"--env_file <ENV_FILE>"
+    )
+    exit(1)
 
-vars = dotenv_values(args.env_file)
+vars = dotenv_values(env_file)
 
 odps_url=vars['odps_url']
 send_remote=vars.get('send_remote', 'false').lower() in ('true', 'yes', '1', 't', 'y')
@@ -385,7 +370,7 @@ style.theme_use('clam')
 style.configure('TFrame', background=background)
 style.configure('TLabel', background=background, foreground=compliment, font=('Helvetica', 12))
 style.configure('TButton', background=compliment, foreground=button_text, font=('Helvetica', 12))
-style.configure('TEntry', insertcolor='#000000')
+style.configure('TEntry', insertcolor='#000000') # set cursor to a visible color
 
 app.configure(bg=background)
 
