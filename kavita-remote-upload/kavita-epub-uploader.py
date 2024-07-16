@@ -6,25 +6,25 @@
 # README
 # Some dependancies must be installed manually (python-tkinter, pipx):
 #
-# On MacOS: `brew install python-tk pipx  && pipx ensurepath` (requires homebrew to be installed)
+# On MacOS: `brew install python-tk pipx  && pipx ensurepath` (requires homebrew) 
 # On Debian-based/apt: `sudo apt update && sudo apt install python3-tk pipx && pipx ensurepath`
 # On Fedora-based/dnf: `sudo dnf install python3-tkinter pipx && pipx ensurepath`
 #
 # For remote access, rsync should also be installed.
-# Warning: MacOS ships with an ancient version of rsync from 2006.
+# Warning: MacOS ships with an ancient version of rsync from 2006 that is incompatible!
 # Please update your rsync, `homebrew install rsync` is sufficent to do this!
 
 # To run this script:
 # `chmod +x ./kavita-remote-upload.py` (on first run only)
 # `./kavita-remote-upload.py` 
-#
-# OR just `pipx run kavita-remote-upload.py`
+# OR
+# `pipx run kavita-remote-upload.py`
 
-# You can set variables to run this script in .env, see env.py.example
+# You can set config options for this script in .env, see .env.example for schema.
 
 # This script was originally written by @duplaja, with heavy edits by @deafmute1
 # Original: (https://github.com/duplaja/kavita-scripts/blob/main/epub-fix-gui-remote.py)
-#
+
 from pathlib import Path
 import re
 import subprocess 
@@ -281,7 +281,7 @@ def update_dropdown():
     dropdown['menu'].add_command(label="(Kavita Root)", command=tk._setit(selected_folder, str(current_dir)))
     for library_name, library_path in libraries.items():
         dropdown['menu'].add_command(label=library_name, command=tk._setit(selected_folder, library_path))
-        if library_name.casefold() == default_library.casefold(): 
+        if default_library and library_name.casefold() == default_library.casefold(): 
             selected_folder.set(library_path)
     
 
