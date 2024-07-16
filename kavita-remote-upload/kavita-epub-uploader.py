@@ -364,7 +364,7 @@ def process_series_folder_updates(*args, **kwargs):
 ## GUI Logic 
 ###############
 app = tk.Tk()
-app.title("Kavita Epub Preparer")
+app.title("Kavita ePub Uploader")
 
 
 def open_epub_at_launch(): 
