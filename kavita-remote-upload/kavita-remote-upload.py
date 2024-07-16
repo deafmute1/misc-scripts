@@ -1,3 +1,21 @@
+#! /usr/bin/env -S pipx run
+# /// script
+# dependencies = ["requests"]
+# ///
+
+# README
+# Some dependancies must be installed manually (python-tkinter, pipx):
+# On MacOS: `brew install python-tk pipx && pipx ensurepath` (requires homebrew to be installed)
+# On Debian-based/apt: `sudo apt update && sudo apt install python3-tk pipx && pipx ensurepath`
+# On Fedora-based/dnf: `sudo dnf install python3-tkinter pipx && pipx ensurepath`
+
+# To run this script:
+# `chmod +x ./kavita-remote-upload.py` (on first run only)
+# `./kavita-remote-upload.py` 
+# OR `pipx run kavita-remote-upload.py`
+
+# You can set variables to run this script in ./env.py, see env.py.example
+##################################
 from pathlib import Path
 import re
 import subprocess
@@ -8,33 +26,7 @@ from tkinter import messagebox
 import requests
 import json
 
-########################################################
-#
-# Change These Settings, as desired.
-#
-########################################################
-
-#Kavita ODPS url (required, replace with your own)
-
-odps_url = ''  # ex) https://example.com/api/opds/dxxxxxxxxb-3439-46f7-b9cf-xxxxxxxxxx9c
-
-# Whether to send the file to a remote server (using rsync). (required).
-
-send_remote = True  #True or False
-
-# Rsync Configs, only required if send_remote is True
-
-ssh_key = '' #local path to pub key  ex) /home/username/.ssh/id_rsa.pub
-ssh_user = ''  #username and address for SSH / rsync.   ex) kavita@example.com
-
-# Path to kavita root folder. Can be local, or your path on remote server.
-kavita_base_path = '' # Path or empty string '' to use folder this script runs in. ex) '/sites/example.com/files'
-
-#########################################################
-#
-# Stop Editing Below Here
-#
-#########################################################
+from .env import *
 
 #Defaults kavita_base_path to directory this program is in, if not set.
 if kavita_base_path == '':
