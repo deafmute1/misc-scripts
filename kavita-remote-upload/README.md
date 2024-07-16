@@ -1,6 +1,8 @@
 # README
 kavita-epub-uploader is a tkinter GUI to prepare and upload epubs to kavita.
 
+It script was originally written by @duplaja, with heavy edits by @deafmute1. 
+[Link to original](https://github.com/duplaja/kavita-scripts/blob/main/epub-fix-gui-remote.py)
 
 # Installation
 Some dependancies must be installed manually: python-tkinter, pipx, python (for windows users)
