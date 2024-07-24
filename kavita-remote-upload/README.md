@@ -42,3 +42,13 @@ options:
   --library LIBRARY, -l LIBRARY
                         Set a default library
 ```
+
+# TODO
+- Support multiple files?
+  1: support looping thru an array of files from cli and recreate GUI each time - fairly hacky, but works!
+  2: Rework UI to take and act on multiple UIs, one at a time? 
+  3: maybe add option to batch upload without apply fixes - in addition to 1 to avoid reworks?
+- Support device upload
+  1: get /api/device, display devices in dropdown menu to select; add options to pass device id on cli
+  2: get /api/Series/recently-updated-series and /api/Series/recently-added-v2, and look for our upload there to get id
+  3: push id to /api/Device/send-to
