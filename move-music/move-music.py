@@ -6,23 +6,30 @@ from collections import Counter
 import os, sys
 from pathlib import Path
 
-# You can overwrite env using this dict
-ENV_VARS = {
+# You can set any hitherto unset env values using this dict
+# Do not delete any lines.
+ENV_DEFAULT = {
     "TR_TORRENT_DIR": None, 
     "TR_TORRENT_NAME": None, 
     "TR_TORRENT_ID": None, 
     "TR_TORRENT_LABELS": None,
-    "TR_MOVE_TO_PREFIX": None, 
+    "TR_MOVE_TO_ROOT": None, 
     "TR_USER": None, 
     "TR_PASS": None,
+    "TR_MOVE_TO_FALLBACK_SUFFIX": "unsorted"
 }
 
 def print_exit(s: str, err:bool=True):
     print(f'{"<move_music.py> Error: " if err else "<move_music.py>:" } {s}; exiting ') 
     exit(2 if err else 0)
 
+def default_value_or_fail(key: str): 
+    if ENV_DEFAULT[key] is None:
+        print_exit(f"Env var {key} is required, but is unset")
+    return ENV_DEFAULT[key] 
+
 def main():
-    vars = {k: v if v is not None else os.environ.get(k, v) for k, v in ENV_VARS.items()}
+    vars = {k: os.environ.get(k, default_value_or_fail(k)) for k in ENV_DEFAULT}
     
     if not "music" in vars["TR_TORRENT_LABELS"].split(','): 
         print_exit("Torrent not tagged music", False)
@@ -30,14 +37,15 @@ def main():
     if shutil.which("transmission-remote") is None: 
         print_exit("transmission-remote not in PATH")
         
-    path_move = Path(vars["TR_MOVE_TO_PREFIX"])
+
+    path_move = Path(vars["TR_MOVE_TO_ROOT"])
     path_source = Path(vars["TR_TORRENT_DIR"]).joinpath(vars["TR_TORRENT_NAME"]).resolve()
     
     if not path_source.is_dir(): 
         print_exit(f"Error: path to torrent {path_source} is not directory")
     if path_move in path_source.parents or path_move.samefile(path_source): 
         print_exit(
-            f"Error: download dir of this torrent is relative to (subdir of) TR_MOVE_TO_PREFIX"
+            f"Error: download dir of this torrent is relative to (subdir of) TR_MOVE_TO_ROOT"
         )
     
     artist_count=Counter()
@@ -45,8 +53,14 @@ def main():
         if not TinyTag.is_supported(file):
             continue
         artist_count[TinyTag.get(file).artist] += 1
-        
-    path_move = path_move.joinpath(artist_count.most_common(1)[0][0])
+    
+    try: 
+        path_move_suffix = artist_count.most_common(1)[0][0]
+    # if failed to get any artist from any file, most_common() returns []
+    except IndexError: 
+        path_move_suffix = vars["TR_MOVE_TO_ROOT"]
+    
+    path_move = path_move.joinpath(path_move_suffix)
     path_move.mkdir(exist_ok=True)
     cmd = [
         "transmission-remote",
