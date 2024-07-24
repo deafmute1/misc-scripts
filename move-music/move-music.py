@@ -18,8 +18,7 @@ ENV_VARS = {
 }
 
 def print_exit(s: str, err:bool=True):
-    print(f'{"<move_music.py> Error: " if err else "<move_music.py>:" } {s}; exiting ')
-    os.environ["RUN_PY_SUPPRESS_RERUN"] = "True"
+    print(f'{"<move_music.py> Error: " if err else "<move_music.py>:" } {s}; exiting ') 
     exit(2 if err else 0)
 
 def main():
