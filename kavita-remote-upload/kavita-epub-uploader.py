@@ -343,7 +343,7 @@ def process_series_folder_updates(*args, **kwargs):
     # Leaving the rest as the last name.
     author = author.split()
     try: 
-        author = author[0] if len(author) = 1 else author[-1] + ", " + " ".join(author[:-1]) 
+        author = author[0] if len(author) == 1 else author[-1] + ", " + " ".join(author[:-1]) 
     except: # if only one name substring
         author = author[0] 
     if use_author_folder_tk.get():
