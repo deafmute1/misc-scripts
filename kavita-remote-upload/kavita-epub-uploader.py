@@ -108,7 +108,15 @@ def scan_kavita_folder(kavita_scan_path):
     }
     response = requests.post(file_scan_url, headers=headers, data=json.dumps(data))
 
-
+def send_series_to_device():
+    headers = {
+        'Authorization': f'Bearer {kauth()}',
+        'accept': "text/plain",
+        'Content-Type': "application/json"
+    }
+    data= {
+        
+    }
 
 def send_epub_via_rsync(local_path,remote_path):
     # Rsync with --mkpath option
