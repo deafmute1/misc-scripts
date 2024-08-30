@@ -64,6 +64,21 @@ def main():
         f'command: {ret.args}\n'
         f'output: {ret.stdout}'
     )
+    
+    cmd = [
+        "transmission-remote",
+        "localhost:9091",
+        "-n", f'{vars["TR_USER"]}:{vars["TR_PASS"]}',
+        "-t", vars["TR_TORRENT_ID"],
+        "--start"
+    ]
+    ret = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    info_string += (
+        f'\n{"Torrent failed to start" if ret.returncode == 1 else "Torrent started"}\n'
+        f'command: {ret.args}\n'
+        f'output: {ret.stdout}'
+    )
+
     print_exit(info_string, err)
 
 if __name__ == "__main__":
